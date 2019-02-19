@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<AutoCompleteTextView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:orientation="vertical"
+    android:id="@+id/autoCompleteTextView"
+    android:textColorHint="@color/black"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_centerVertical="true"
+    android:gravity="left|center_vertical"
+    android:textColor="@android:color/black"
+    android:hint="Search By Team or Competition"
+    android:imeOptions="actionSearch"
+    android:inputType="textAutoComplete|textAutoCorrect"
+    android:lines="1"
+    />

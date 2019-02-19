@@ -1,0 +1,42 @@
+<resources>
+    <string name="title_activity_login">Kickr Login</string>
+
+    <!-- Strings related to login -->
+    <string name="prompt_email">Login</string>
+    <string name="prompt_password">Password</string>
+    <string name="action_sign_in">Sign in or register</string>
+    <string name="action_sign_in_short">Sign in</string>
+    <string name="error_invalid_email">This email address is invalid</string>
+    <string name="error_invalid_password">This password is too short</string>
+    <string name="error_incorrect_password">This password is incorrect</string>
+    <string name="error_field_required">This field is required</string>
+    <string name="permission_rationale">"Contacts permissions are needed for providing email
+        completions."
+    </string>
+    <string name="title_activity_fixtures">Fixtures</string>
+    <string name="action_settings">Settings</string>
+
+    <string name="title">Kickr</string>
+    <string name="contact">kickrgaa@gmail.com</string>
+    <string name="name">Developer: Ciaran McManus</string>
+
+    <string name="information_text">
+        This application was developed in order to provide an easy way for people to view fixtures and results
+        for their favourite teams. I am a footballer from Laois who plays for O\'Dempseys football club. This
+        club means a lot to me and I wanted to provide something back to the GAA community because of the way I
+        have been treated over the years. The GAA commuity is special in how everyone interacts and enjoys the matches.
+        This application just makes it easier for viewing when matches are coming and the results of previous matches.
+        This application will be continuously developed for as long as possible and updates
+        will be forthcoming.
+    </string>
+
+    <string name="information_text_2">
+        If there are bugs or issues you would like to highlight, please do not hesitate to contact me through my email address.
+    </string>
+
+    <string name="rate">
+        Please rate my application and realise that I am constantly improving the application and will work to make sure
+        any issues are fixed ASAP.
+    </string>
+    <string name="app_name">Kickr</string>
+</resources>
