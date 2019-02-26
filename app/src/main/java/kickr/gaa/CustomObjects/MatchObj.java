@@ -6,6 +6,7 @@ package kickr.gaa.CustomObjects;
 
 public class MatchObj implements Comparable<MatchObj>{
     //member variables
+    private Boolean isLeagueInfo = false;
     private String time = "";
     private String homeTeam = "";
     private String awayTeam = "";
@@ -20,6 +21,14 @@ public class MatchObj implements Comparable<MatchObj>{
 
     public MatchObj() {
 
+    }
+
+    public Boolean getLeagueInfo() {
+        return isLeagueInfo;
+    }
+
+    public void setLeagueInfo(Boolean leagueInfo) {
+        isLeagueInfo = leagueInfo;
     }
 
     public String getTime() {

@@ -6,6 +6,13 @@
     android:background="#e4e4e4"
     tools:context="kickr.gaa.Fixtures">
 
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:id="@+id/text"
+        android:gravity="center"
+        android:visibility="visible"/>
+
     <!-- Login progress -->
     <ProgressBar
         android:id="@+id/info_progress"
@@ -98,14 +105,13 @@
 
             <ExpandableListView
                 android:id="@+id/lvExp"
-                android:layout_height="match_parent"
                 android:layout_width="match_parent"
-                android:layout_below="@+id/buttonBar"/>
+                android:layout_height="match_parent" />
 
             <LinearLayout
                 android:id="@+id/comp_display"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
+                android:layout_height="match_parent"
                 android:layout_below="@+id/buttonBar"
                 android:orientation="vertical">
 

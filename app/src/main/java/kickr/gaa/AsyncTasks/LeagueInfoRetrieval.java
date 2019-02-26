@@ -2,8 +2,6 @@ package kickr.gaa.AsyncTasks;
 
 import android.os.AsyncTask;
 
-import kickr.gaa.CustomObjects.MatchObj;
-
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -19,41 +17,25 @@ import java.net.URL;
 import java.text.ParseException;
 import java.util.ArrayList;
 
-/**
- * Created by cmcmanus on 11/29/2017.
- */
+import kickr.gaa.CustomObjects.LeagueTablePosition;
+import kickr.gaa.CustomObjects.MatchObj;
 
-public class FixtureRetrieval extends AsyncTask<Void, Void, String> {
+public class LeagueInfoRetrieval extends AsyncTask<Void, Void, String> {
     public AsyncResponse delegate = null;
-    private String countyName = "";
-    private Boolean fixtures;
+    private String leagueName;
 
-    public FixtureRetrieval(AsyncResponse delegate) {
-        this.delegate = delegate;
-    }
-
-    public FixtureRetrieval(String county, Boolean fixtures) {
-        this.countyName = county.toLowerCase();
-        this.fixtures = fixtures;
+    public LeagueInfoRetrieval(String leagueName) {
+        this.leagueName = leagueName;
     }
 
     @Override
-    protected String doInBackground(Void... params) {
-        URL url = null;
-        HttpURLConnection urlConnection = null;
+    protected String doInBackground(Void... voids) {
+        URL url;
+        HttpURLConnection urlConnection;
         StringBuilder sb = null;
 
         try {
-            //reset string to usable variable
-            if (countyName.equals("inter-county")) {
-                countyName = "county";
-            }
-
-            if (fixtures) {
-                url = new URL("https://kickr-api.herokuapp.com/fixtures/" + countyName);
-            } else {
-                url = new URL("https://kickr-api.herokuapp.com/results/" + countyName);
-            }
+            url = new URL("https://kickr-api.herokuapp.com/leagueInfo/" + leagueName);
 
             urlConnection = (HttpURLConnection) url.openConnection();
 
@@ -84,12 +66,9 @@ public class FixtureRetrieval extends AsyncTask<Void, Void, String> {
                 }//end if
             }//end finally
         }//end try
-        catch (MalformedURLException e)
-        {
+        catch (MalformedURLException e) {
             return "";
-        }
-        catch (IOException e)
-        {
+        } catch (IOException e) {
             return "";
         }
 
@@ -100,11 +79,11 @@ public class FixtureRetrieval extends AsyncTask<Void, Void, String> {
     @Override
     protected void onPostExecute(final String success)
     {
-        if(success == "")
+        if(success == "" || success == null)
         {
             try
             {
-                delegate.processFixtures(null);
+                delegate.processLeagueInfo(null, null);
             }
             catch (ParseException e)
             {
@@ -112,30 +91,60 @@ public class FixtureRetrieval extends AsyncTask<Void, Void, String> {
             }
         }
 
-        ArrayList<MatchObj> matchList = null;
+        JSONObject jsonObj;
+        JSONArray fixturesObject;
+        JSONArray leagueTable;
+        try {
+            jsonObj = new JSONObject(success);
 
-        //check if the data return is empty or not
-        if (success.equals("")) {
+            fixturesObject = jsonObj.getJSONArray("Fixtures");
+            leagueTable = jsonObj.getJSONArray("LeagueTable");
 
-        } else {
-            //create and sort JSON array into usable data.
-            try {
-                JSONArray arr = new JSONArray(success);
+            ArrayList<MatchObj> matchList = null;
+            ArrayList<LeagueTablePosition> leagueInfo = null;
 
-                matchList = createMatchObjArray(arr);
+            //check if the data return is empty or not
+            if (success.equals("")) {
 
-                //initialise the buttons for the menu bar
-                delegate.processFixtures(matchList);
-            } catch (JSONException e) {
+            } else {
+                //create and sort JSON array into usable data.
+                try {
+                    matchList = createMatchObjArray(fixturesObject);
+                    leagueInfo = createLeagueTableObjArray(leagueTable);
 
-            } catch (ParseException e) {
-                e.printStackTrace();
+                    //initialise the buttons for the menu bar
+                    delegate.processLeagueInfo(leagueInfo, matchList);
+                }
+                catch (ParseException e) {
+                    e.printStackTrace();
+                }
             }
+        } catch (JSONException e) {
+            e.printStackTrace();
         }
     }
 
-    @Override
-    protected void onCancelled() {
+    private ArrayList<LeagueTablePosition> createLeagueTableObjArray(JSONArray leagueTable)
+    {
+        ArrayList<LeagueTablePosition> leagueTableArr = new ArrayList<>();
+
+        for (int i = 0; i < leagueTable.length(); i++) {
+            try {
+                //get each match
+                JSONObject leagueTablePos = leagueTable.getJSONObject(i);
+
+                if (null != leagueTablePos && leagueTablePos.length() != 0)
+                {
+                    LeagueTablePosition leaguePosObj = new LeagueTablePosition(leagueTablePos);
+                    leagueTableArr.add(leaguePosObj);
+                }
+
+            } catch (JSONException e) {
+
+            }
+        }
+
+        return leagueTableArr;
 
     }
 
@@ -166,6 +175,7 @@ public class FixtureRetrieval extends AsyncTask<Void, Void, String> {
                         matchObj.setCompetition(match.getString("competition"));
                         matchObj.setCounty(match.getString("county"));
                         matchObj.setWinner(match.getString("winner"));
+                        matchObj.setLeagueInfo(true);
                     } else {
                         //create new fixture object
                         //fixture object does not contain homeTeamScore or awayTeamScore as well as winner.
@@ -182,6 +192,7 @@ public class FixtureRetrieval extends AsyncTask<Void, Void, String> {
                         matchObj.setCompetition(match.getString("competition"));
                         matchObj.setCounty(match.getString("county"));
                         matchObj.setWinner("N/A");
+                        matchObj.setLeagueInfo(true);
                         //add all the match objects to the list
                         matchList.add(i, matchObj);
                     }

@@ -5,28 +5,34 @@ import android.animation.AnimatorListenerAdapter;
 import android.content.Context;
 import android.graphics.Color;
 import android.graphics.drawable.Drawable;
-import android.os.Build;
+import android.net.ConnectivityManager;
 import android.os.Bundle;
-
-import androidx.annotation.RequiresApi;
 
 import com.google.android.material.tabs.TabLayout;
 
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.cardview.widget.CardView;
 
+import android.view.Gravity;
+import android.view.LayoutInflater;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.AdapterView;
 import android.widget.AutoCompleteTextView;
 import android.widget.Button;
+
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.RelativeLayout;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import kickr.gaa.ArrayAdapters.CustomArrayAdapter;
 import kickr.gaa.AsyncTasks.AsyncResponse;
 import kickr.gaa.AsyncTasks.FixtureRetrieval;
+import kickr.gaa.AsyncTasks.LeagueInfoRetrieval;
+import kickr.gaa.CustomObjects.LeagueTablePosition;
 import kickr.gaa.CustomObjects.MatchObj;
 import kickr.gaa.CustomViews.CustomViews;
 import kickr.gaa.DataSorting.SortMatchInfo;
@@ -38,12 +44,15 @@ import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Date;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
-public class Fixtures extends AppCompatActivity implements AsyncResponse {
 
+public class Fixtures extends AppCompatActivity implements AsyncResponse {
+    List<String> compInfo = Arrays.asList("ACFL1A", "ACFL1B", "ACFL2", "ACFL3", "ACFL4", "ACFL5A", "ACFL5B", "ACHL1", "ACHL1A", "ACHL2", "ACHL3", "ACHL4", "ACHL5A", "ACHL5B");
     public static boolean search = false;
     public static boolean tabUsed = false;
     public static boolean calInUse = false;
@@ -56,6 +65,7 @@ public class Fixtures extends AppCompatActivity implements AsyncResponse {
     public boolean isLoading = false;
     //network variable
     FixtureRetrieval retrieveData = null;
+    LeagueInfoRetrieval leagueData = null;
     //class variable
     Fixtures fixtureVar;
     //display the cards in a relative layout
@@ -72,12 +82,16 @@ public class Fixtures extends AppCompatActivity implements AsyncResponse {
     //layout variables
     AutoCompleteTextView textSearch;
     //define variables needed
-    private ArrayList<MatchObj> matchObjList = null;
+    public static ArrayList<MatchObj> matchObjList = null;
+    public static ArrayList<LeagueTablePosition> leagueInfo = null;
     private String county = "";
     private String sortBy = "";
     private SortMatchInfo sortMatches = null;
 
-    @RequiresApi(api = Build.VERSION_CODES.LOLLIPOP)
+    TextView internetConnectText;
+    String currentDate;
+    boolean leagueIsClicked = false;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -85,6 +99,8 @@ public class Fixtures extends AppCompatActivity implements AsyncResponse {
 
         //instantiate class
         fixtureVar = new Fixtures();
+
+        //setMatchObjList(matchObjList);
 
         tabLayout = findViewById(R.id.tabLayout);
         searchTab = findViewById(R.id.textSearch);
@@ -97,6 +113,7 @@ public class Fixtures extends AppCompatActivity implements AsyncResponse {
         DateFormat dateFormat = new SimpleDateFormat("dd-MM-yyyy");
         Date date = new Date();
         date_str = dateFormat.format(date); // eg. 22-01-2018
+        currentDate = dateFormat.format(date);
 
         //instantiate the views
         mProgressView = findViewById(R.id.info_progress);
@@ -108,7 +125,46 @@ public class Fixtures extends AppCompatActivity implements AsyncResponse {
 
         all_match_info_display = findViewById(R.id.comp_display);
 
-        queryAPI(true);
+        if (isNetworkConnected()) {
+            queryAPI(true);
+        } else {
+            Toast.makeText(Fixtures.this, "No Internet Connection", Toast.LENGTH_SHORT).show();
+            internetConnectText = findViewById(R.id.text);
+            internetConnectText.setText("No Internet Connection, Connect and press here to refresh!");
+            internetConnectText.setTextSize(20);
+            internetConnectText.setTextColor(Color.BLACK);
+
+            internetConnectText.setOnTouchListener(new View.OnTouchListener() {
+                @Override
+                public boolean onTouch(View v, MotionEvent event) {
+                    if (isNetworkConnected()) {
+                        internetConnectText.setVisibility(View.INVISIBLE);
+                        queryAPI(true);
+                    } else {
+                        Toast.makeText(Fixtures.this, "No Internet Connection", Toast.LENGTH_SHORT).show();
+                        return true;
+                    }
+                    return false;
+                }
+            });
+        }
+    }
+
+    private boolean isNetworkConnected() {
+        ConnectivityManager cm = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
+
+        return cm.getActiveNetworkInfo() != null;
+    }
+
+    private void queryLeagueDataAPI(String league) {
+
+        //show loading bar
+        showProgress(true);
+
+        leagueData = new LeagueInfoRetrieval(league);
+        leagueData.execute();
+        leagueData.delegate = this;
+        //calls processFixtures()
     }
 
     private void queryAPI(Boolean fixtures) {
@@ -118,21 +174,117 @@ public class Fixtures extends AppCompatActivity implements AsyncResponse {
         retrieveData = new FixtureRetrieval(county, fixtures);
         retrieveData.execute();
         retrieveData.delegate = this;
-        //calls processFinish()
+        //calls processFixtures()
     }
 
     @Override
-    public void processFinish(ArrayList<MatchObj> matchList) throws ParseException {
-        isLoading = false;
-        noFutureMatches = false;
+    public void processFixtures(ArrayList<MatchObj> matchList) throws ParseException {
+        if (matchList == null || matchList.isEmpty()) {
+            //remove the progress circle
+            showProgress(false);
+
+            Toast.makeText(Fixtures.this, "Connection Failed", Toast.LENGTH_SHORT).show();
+            internetConnectText = findViewById(R.id.text);
+            internetConnectText.setText("No Internet Connection, Connect and press here to refresh!");
+            internetConnectText.setTextSize(20);
+            internetConnectText.setTextColor(Color.BLACK);
+
+            internetConnectText.setOnTouchListener(new View.OnTouchListener() {
+                @Override
+                public boolean onTouch(View v, MotionEvent event) {
+                    if (isNetworkConnected()) {
+                        internetConnectText.setVisibility(View.INVISIBLE);
+                        queryAPI(true);
+                    } else {
+                        Toast.makeText(Fixtures.this, "Connection Failed", Toast.LENGTH_SHORT).show();
+                        return true;
+                    }
+                    return false;
+                }
+            });
+        } else {
+            isLoading = false;
+            noFutureMatches = false;
+
+            //remove the progress circle
+            showProgress(false);
+
+            matchObjList = matchList;
+
+            //display the data
+            initMenu(matchList, tabLayout, "");
+        }
+    }
+
+    private void filterOutDuplicates(ArrayList<MatchObj> matchList) {
+        ArrayList<MatchObj> finalList = new ArrayList<>();
+
+        for (Iterator<MatchObj> it = matchObjList.iterator(); it.hasNext(); ) {
+            MatchObj o = it.next();
+
+            for (MatchObj finalObj : matchList) {
+                if ((o.getId() == finalObj.getId()) && !o.getLeagueInfo()) {
+                    finalList.add(o);
+                }
+            }
+        }
+
+        matchObjList.addAll(matchList);
+
+        for (MatchObj finalObj : finalList) {
+            for (Iterator<MatchObj> it = matchObjList.iterator(); it.hasNext(); ) {
+                MatchObj o = it.next();
+                if ((o.getId() == finalObj.getId()) && o.getLeagueInfo()) {
+                    it.remove();
+                }
+            }
+        }
+    }
+
+    @Override
+    public void processLeagueInfo(ArrayList<LeagueTablePosition> leagueTable, ArrayList<MatchObj> matchList) throws ParseException {
+
+        leagueInfo = leagueTable;
+
+        if (leagueTable == null || leagueTable.isEmpty()) {
+            //remove the progress circle
+            showProgress(false);
+
+            Toast.makeText(Fixtures.this, "Connection Failed", Toast.LENGTH_SHORT).show();
+            internetConnectText = findViewById(R.id.text);
+            internetConnectText.setText("No Internet Connection, Connect and press here to refresh!");
+            internetConnectText.setTextSize(20);
+            internetConnectText.setTextColor(Color.BLACK);
+
+            internetConnectText.setOnTouchListener(new View.OnTouchListener() {
+                @Override
+                public boolean onTouch(View v, MotionEvent event) {
+                    if (isNetworkConnected()) {
+                        internetConnectText.setVisibility(View.INVISIBLE);
+                        createLeagueList();
+                    } else {
+                        Toast.makeText(Fixtures.this, "Connection Failed", Toast.LENGTH_SHORT).show();
+                        return true;
+                    }
+                    return false;
+                }
+            });
+        } else {
+            //remove the progress circle
+            showProgress(false);
+
+            displayLeagueTables(leagueTable);
+        }
+
+        if (matchList == null || matchList.isEmpty()) {
+            tabUsed = true;
+        } else {
+            filterOutDuplicates(matchList);
+            tabUsed = true;
+        }
 
         //remove the progress circle
         showProgress(false);
-
-        matchObjList = matchList;
-
-        //display the data
-        initMenu(matchList, tabLayout, "");
     }
 
     @Override
@@ -177,7 +329,7 @@ public class Fixtures extends AppCompatActivity implements AsyncResponse {
         //remove any existing views
         all_match_info_display.removeAllViews();
 
-        displayMatchesByDate(matchList);
+        displayMatchesByDate(matchList, false);
 
         //init the buttons
         dateSearch = findViewById(R.id.date);
@@ -185,11 +337,13 @@ public class Fixtures extends AppCompatActivity implements AsyncResponse {
         //tab layout logic
         Drawable dateIcon = getDrawable(R.drawable.ic_date_range_white_24dp);
         Drawable searchIcon = getDrawable(R.drawable.ic_magnify_white_24dp);
+        Drawable tableList = getDrawable(R.drawable.baseline_reorder_white_24dp);
 
         if (!tabUsed) {
             tabLayout.addTab(tabLayout.newTab().setText("Fixtures"));
             tabLayout.addTab(tabLayout.newTab().setIcon(dateIcon));
             tabLayout.addTab(tabLayout.newTab().setIcon(searchIcon));
+            tabLayout.addTab(tabLayout.newTab().setIcon(tableList));
         }
 
         tabLayout.setOnTabSelectedListener(new TabLayout.OnTabSelectedListener() {
@@ -201,6 +355,7 @@ public class Fixtures extends AppCompatActivity implements AsyncResponse {
                     search = false;
                     //reset the matches to today
                     try {
+                        tabLayout.getTabAt(0).setText("Fixtures");
                         initMenu(matchObjList, tabLayout, "");
                     } catch (ParseException e) {
                         e.printStackTrace();
@@ -213,7 +368,9 @@ public class Fixtures extends AppCompatActivity implements AsyncResponse {
                     sortMatches.resetData();
                     sortMatches.sortFixturesByCompetition(matchList, date_str, null);
                     displayCalendar(matchList);
-                } else if (tabLayout.getSelectedTabPosition() == 2 && !isLoading) {
+                } else if (tabLayout.getSelectedTabPosition() == 2 && !isLoading)
+                {
+                    tabLayout.getTabAt(0).setText("Fixtures");
                     //remove all views and inflate auto text view
                     search = true;
                     calInUse = false;
@@ -222,7 +379,7 @@ public class Fixtures extends AppCompatActivity implements AsyncResponse {
                     //add the new auto complete text view
                     textSearch = competition_info_card.getAutoCompleteTextView();
 
-                    List<String> list = new ArrayList<String>();
+                    List<String> list = new ArrayList<>();
 
                     //add all teams to the list so it can be searched
                     for (int i = 0; i < matchObjList.size(); i++) {
@@ -261,13 +418,24 @@ public class Fixtures extends AppCompatActivity implements AsyncResponse {
                             InputMethodManager inputManager = (InputMethodManager) Fixtures.this.getSystemService(Context.INPUT_METHOD_SERVICE);
                             inputManager.hideSoftInputFromWindow(view.getWindowToken(), InputMethodManager.HIDE_NOT_ALWAYS);
 
-                            displayMatchInfo(filtered, date_str, "team");
+                            try {
+                                displayMatchesByDate(filtered, true);
+                            } catch (ParseException e) {
+                                e.printStackTrace();
+                            }
                         }
                     });
 
                     all_match_info_display.addView(textSearch);
+                } else if (tabLayout.getSelectedTabPosition() == 3 && !isLoading)
+                {
+                    tabLayout.getTabAt(0).setText("Fixtures");
+                    //remove any existing views
+                    all_match_info_display.removeAllViews();
+                    createLeagueList();
                 }
             }
+
 
             @Override
             public void onTabUnselected(TabLayout.Tab tab) {
@@ -282,6 +450,7 @@ public class Fixtures extends AppCompatActivity implements AsyncResponse {
                     search = false;
                     //reset the matches to today
                     try {
+                        tabLayout.getTabAt(0).setText("Fixtures");
                         initMenu(matchObjList, tabLayout, "");
                     } catch (ParseException e) {
                         e.printStackTrace();
@@ -293,7 +462,9 @@ public class Fixtures extends AppCompatActivity implements AsyncResponse {
                     sortMatches.resetData();
                     sortMatches.sortFixturesByCompetition(matchList, date_str, null);
                     displayCalendar(matchList);
-                } else if (tabLayout.getSelectedTabPosition() == 2 && !isLoading) {
+                } else if (tabLayout.getSelectedTabPosition() == 2 && !isLoading)
+                {
+                    tabLayout.getTabAt(0).setText("Fixtures");
                     //remove all views and inflate auto text view
                     search = true;
                     tabUsed = true;
@@ -342,12 +513,21 @@ public class Fixtures extends AppCompatActivity implements AsyncResponse {
                             InputMethodManager inputManager = (InputMethodManager) Fixtures.this.getSystemService(Context.INPUT_METHOD_SERVICE);
                             inputManager.hideSoftInputFromWindow(view.getWindowToken(), InputMethodManager.HIDE_NOT_ALWAYS);
 
-                            displayMatchInfo(filtered, date_str, "team");
-
+                            try {
+                                displayMatchesByDate(filtered, true);
+                            } catch (ParseException e) {
+                                e.printStackTrace();
+                            }
                         }
                     });
 
                     all_match_info_display.addView(textSearch);
+                } else if (tabLayout.getSelectedTabPosition() == 3 && !isLoading)
+                {
+                    tabLayout.getTabAt(0).setText("Fixtures");
+                    //remove any existing views
+                    all_match_info_display.removeAllViews();
+                    createLeagueList();
                 }
             }
         });
@@ -386,7 +566,7 @@ public class Fixtures extends AppCompatActivity implements AsyncResponse {
 
         //get the calender view to be manipulated
         compactCalendarView = findViewById(R.id.compactcalendar_view);
-        ArrayList<String> dateList = new ArrayList<String>();
+        ArrayList<String> dateList = new ArrayList<>();
 
         //for each match in the match list
         for (MatchObj match : matchList) {
@@ -434,6 +614,9 @@ public class Fixtures extends AppCompatActivity implements AsyncResponse {
                 try {
                     //parse the date from the calendar clicked date
                     parseDate = sdf.format(dateClicked);
+                    date_str = parseDate;
+                    compactCalendarView.setCurrentDate(dateClicked);
+                    tabLayout.getTabAt(0).setText(date_str);
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
@@ -443,7 +626,7 @@ public class Fixtures extends AppCompatActivity implements AsyncResponse {
                 sortMatches.resetData();
                 all_match_info_display.removeAllViews();
                 //display the data
-                displayMatchInfo(matchList, parseDate, sortBy);
+                displayMatchInfo(matchList, date_str, sortBy);
             }
 
             @Override
@@ -481,13 +664,13 @@ public class Fixtures extends AppCompatActivity implements AsyncResponse {
         });
     }
 
-    private void displayMatchesByDate(ArrayList<MatchObj> matchList) throws ParseException {
+    private void displayMatchesByDate(ArrayList<MatchObj> matchList, boolean search) throws ParseException {
         sortMatches = new SortMatchInfo();
         CardView cardView = null;
         //set the different types of matches by competition
         Map<Date, List<MatchObj>> filterList = null;
 
-        filterList = sortMatches.sortFixturesByDate(matchList);
+        filterList = sortMatches.sortFixturesByDate(matchList, search);
 
         //if there are no scheduled matches, we need to display this to user
         if (filterList == null || filterList.size() == 0) {
@@ -548,8 +731,6 @@ public class Fixtures extends AppCompatActivity implements AsyncResponse {
             // Initialize a new custom CardView
             competition_info_card = new CustomViews(Fixtures.this);
 
-            ArrayList<MatchObj> obj = null;
-
             competition_info_card.setMatchDataLayout("", null, sortBy);
 
             //create a new card view with our custom card
@@ -581,11 +762,164 @@ public class Fixtures extends AppCompatActivity implements AsyncResponse {
         }
     }
 
+    private void createLeagueList()
+    {
+        for (int i = 0; i < compInfo.size(); i++) {
+            //set the properties for button
+            final Button btnTag = new Button(Fixtures.this);
+            btnTag.setLayoutParams(new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+            btnTag.setBackgroundColor(Color.parseColor("#39A3DC"));
+            btnTag.setText(compInfo.get(i));
+            btnTag.setTag("button" + i);
+
+            btnTag.setOnClickListener(new View.OnClickListener()
+            {
+                @Override
+                public void onClick(View v)
+                {
+                    leagueIsClicked = true;
+
+                    all_match_info_display.removeAllViews();
+
+                    final Button btnTag2 = new Button(Fixtures.this);
+                    btnTag2.setLayoutParams(new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+                    btnTag2.setBackgroundColor(Color.parseColor("#39A3DC"));
+                    btnTag2.setText(btnTag.getText());
+                    btnTag2.setGravity(Gravity.CENTER_HORIZONTAL);
+
+                    all_match_info_display.addView(btnTag2);
+
+                    queryLeagueDataAPI(btnTag.getText().toString());
+                }
+            });
+
+            //add button to the layout
+            all_match_info_display.addView(btnTag);
+        }
+    }
+
+    private void displayLeagueTables(ArrayList<LeagueTablePosition> leagueTable)
+    {
+        for (int j = 0; j < leagueTable.size(); j++) {
+            TextView nameTab = new TextView(Fixtures.this);
+            TextView pldTab = new TextView(Fixtures.this);
+            TextView wTab = new TextView(Fixtures.this);
+            TextView dTab = new TextView(Fixtures.this);
+            TextView lTab = new TextView(Fixtures.this);
+            TextView pdTab = new TextView(Fixtures.this);
+            TextView ptsTab = new TextView(Fixtures.this);
+
+            LinearLayout table = new LinearLayout(Fixtures.this);
+            LinearLayout.LayoutParams tableLayout = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT, 3f);
+            tableLayout.bottomMargin = 20;
+            table.setLayoutParams(tableLayout);
+
+            LinearLayout teamName = new LinearLayout(Fixtures.this);
+            LinearLayout.LayoutParams teamNameLayout = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.MATCH_PARENT, 2f);
+            teamName.setLayoutParams(teamNameLayout);
+
+            LinearLayout teamInfo = new LinearLayout(Fixtures.this);
+            LinearLayout.LayoutParams teamLeagueInfo = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.MATCH_PARENT, 1f);
+            teamInfo.setHorizontalScrollBarEnabled(true);
+            teamInfo.setLayoutParams(teamLeagueInfo);
+
+            LinearLayout teamDetails = new LinearLayout(Fixtures.this);
+            LinearLayout.LayoutParams detailsOvr = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.MATCH_PARENT, 5f);
+            teamDetails.setLayoutParams(detailsOvr);
+
+            LinearLayout.LayoutParams leagueInfoOvr = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.MATCH_PARENT, 1f);
+
+            if (j == 0) {
+                nameTab.setText("Team");
+                nameTab.setTextColor(Color.BLACK);
+
+                teamName.addView(nameTab);
+                table.addView(teamName);
+
+                pldTab.setText("Pld");
+                pldTab.setLayoutParams(leagueInfoOvr);
+                pldTab.setTextColor(Color.BLACK);
+                wTab.setText("W");
+                wTab.setLayoutParams(leagueInfoOvr);
+                wTab.setTextColor(Color.BLACK);
+                dTab.setText("D");
+                dTab.setLayoutParams(leagueInfoOvr);
+                dTab.setTextColor(Color.BLACK);
+                lTab.setText("L");
+                lTab.setLayoutParams(leagueInfoOvr);
+                lTab.setTextColor(Color.BLACK);
+                pdTab.setText("PD");
+                pdTab.setLayoutParams(leagueInfoOvr);
+                pdTab.setTextColor(Color.BLACK);
+                ptsTab.setText("Pts");
+                ptsTab.setLayoutParams(leagueInfoOvr);
+                ptsTab.setTextColor(Color.BLACK);
+
+                teamDetails.addView(pldTab);
+                teamDetails.addView(wTab);
+                teamDetails.addView(dTab);
+                teamDetails.addView(lTab);
+                teamDetails.addView(pdTab);
+                teamDetails.addView(ptsTab);
+
+                teamInfo.addView(teamDetails);
+            } else {
+                TextView team = new TextView(Fixtures.this);
+                team.setText(leagueTable.get(j).getTeamName());
+                team.setTextColor(Color.BLACK);
+
+                teamName.addView(team);
+                table.addView(teamName);
+
+                TextView pld = new TextView(Fixtures.this);
+                TextView w = new TextView(Fixtures.this);
+                TextView d = new TextView(Fixtures.this);
+                TextView l = new TextView(Fixtures.this);
+                TextView pd = new TextView(Fixtures.this);
+                TextView pts = new TextView(Fixtures.this);
+
+                pld.setText(leagueTable.get(j).getPlayed());
+                pld.setLayoutParams(leagueInfoOvr);
+                pld.setTextColor(Color.BLACK);
+                w.setText(leagueTable.get(j).getWon());
+                w.setLayoutParams(leagueInfoOvr);
+                w.setTextColor(Color.BLACK);
+                d.setText(leagueTable.get(j).getDrawn());
+                d.setLayoutParams(leagueInfoOvr);
+                d.setTextColor(Color.BLACK);
+                l.setText(leagueTable.get(j).getLost());
+                l.setLayoutParams(leagueInfoOvr);
+                l.setTextColor(Color.BLACK);
+                pd.setText(leagueTable.get(j).getPointsDiff());
+                pd.setLayoutParams(leagueInfoOvr);
+                pd.setTextColor(Color.BLACK);
+                pts.setText(leagueTable.get(j).getPointsTotal());
+                pts.setLayoutParams(leagueInfoOvr);
+                pts.setTextColor(Color.BLACK);
+
+                teamDetails.addView(pld);
+                teamDetails.addView(w);
+                teamDetails.addView(l);
+                teamDetails.addView(d);
+                teamDetails.addView(pd);
+                teamDetails.addView(pts);
+
+                teamInfo.addView(teamDetails);
+            }
+            table.addView(teamInfo);
+
+            all_match_info_display.addView(table);
+        }
+    }
+
     @Override
-    public void onBackPressed() {
-        if (all_match_info_display.isDirty()) {
-            //display todays matches when back button is pressed
-            displayMatchInfo(matchObjList, date_str, sortBy);
+    public void onBackPressed()
+    {
+        if(leagueIsClicked)
+        {
+            leagueIsClicked = false;
+            all_match_info_display.removeAllViews();
+            createLeagueList();
         }
     }
 }

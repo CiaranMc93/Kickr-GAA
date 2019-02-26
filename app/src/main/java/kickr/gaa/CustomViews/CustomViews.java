@@ -22,6 +22,7 @@ import kickr.gaa.Information;
 import kickr.gaa.R;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -29,6 +30,9 @@ import java.util.List;
  */
 
 public class CustomViews extends Activity {
+
+    List<String> compInfo = Arrays.asList("ACFL1A", "ACFL1B", "ACFL2", "ACFL3", "ACFL4", "ACFL5A", "ACFL5B", "ACHL1", "ACHL1A", "ACHL2", "ACHL3", "ACHL4", "ACHL5A", "ACHL5B");
+
     Context context = null;
 
     //views
@@ -182,9 +186,11 @@ public class CustomViews extends Activity {
 
                 setMatchInfoLayout();
 
+                String comp = getCompAbbr(matches.get(j).getCompetition());
+
                 //display the match data
                 TextView time = this.match_info_layout.findViewById(R.id.time);
-                time.setText(matches.get(j).getTime());
+                time.setText(comp);
                 time.setTextSize(16);
 
                 if (!(matches.get(j).getHomeTeamScore().equals("0-00") && matches.get(j).getAwayTeamScore().equals("0-00"))) {
@@ -216,7 +222,7 @@ public class CustomViews extends Activity {
                 if (matches.get(j).getAwayTeam().length() > 20) {
                     away.setText(matches.get(j).getAwayTeam().substring(0, 19) + "...");
                 } else {
-                    home.setText(matches.get(j).getAwayTeam());
+                    away.setText(matches.get(j).getAwayTeam());
                 }
                 away.setTextSize(16);
 
@@ -257,6 +263,118 @@ public class CustomViews extends Activity {
 
             this.view = cardView;
         }
+    }
+
+    private String getCompAbbr(String comp)
+    {
+        comp = comp.toUpperCase();
+
+        if(comp.contains("ACFL"))
+        {
+            if(comp.contains("1A"))
+            {
+                return "ACFL1A";
+            }
+            else if(comp.contains("1B"))
+            {
+                return "ACFL1B";
+            }
+            else if(comp.contains("2"))
+            {
+                return "ACFL2";
+            }
+            else if(comp.contains("3"))
+            {
+                return "ACFL3";
+            }
+            else if(comp.contains("4"))
+            {
+                return "ACFL4";
+            }
+            else if(comp.contains("5"))
+            {
+                if(comp.contains("GROUP A"))
+                {
+                    return "ACFL5A";
+                }
+                else if(comp.contains("GROUP B"))
+                {
+                    return "ACFL5B";
+                }
+            }
+        }
+        else if(comp.contains("ACHL"))
+        {
+            if(comp.contains("1A"))
+            {
+                return "ACHL1A";
+            }
+            else if(comp.contains("1B"))
+            {
+                return "ACHL1B";
+            }
+            else if(comp.contains("2"))
+            {
+                return "ACHL2";
+            }
+            else if(comp.contains("3"))
+            {
+                return "ACHL3";
+            }
+            else if(comp.contains("4"))
+            {
+                return "ACHL4";
+            }
+            else if(comp.contains("5"))
+            {
+                if(comp.contains("GROUP A"))
+                {
+                    return "ACHL5A";
+                }
+                else if(comp.contains("GROUP B"))
+                {
+                    return "ACHL5B";
+                }
+            }
+        }
+        else if(comp.contains("U12") || (comp.contains("U") && comp.contains("12")))
+        {
+            return "U12";
+        }
+        else if(comp.contains("U13")|| (comp.contains("U") && comp.contains("13")))
+        {
+            return "U13";
+        }
+        else if(comp.contains("U14")|| (comp.contains("U") && comp.contains("14")))
+        {
+            return "U14";
+        }
+        else if(comp.contains("U15")|| (comp.contains("U") && comp.contains("15")))
+        {
+            return "U15";
+        }
+        else if(comp.contains("U16")|| (comp.contains("U") && comp.contains("16")))
+        {
+            return "U16";
+        }
+        else if(comp.contains("U17")|| (comp.contains("U") && comp.contains("17")))
+        {
+            return "U17";
+        }
+        else if(comp.contains("MINOR"))
+        {
+            return "MINOR";
+        }
+        else if(comp.contains("U21"))
+        {
+            return "U21";
+        }
+        else if(comp.contains("KELLY CUP"))
+        {
+            return "KELLY CUP";
+        }
+
+        return "";
     }
 
     public void cardSetup() {

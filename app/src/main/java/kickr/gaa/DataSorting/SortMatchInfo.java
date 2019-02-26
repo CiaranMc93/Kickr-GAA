@@ -26,7 +26,7 @@ public class SortMatchInfo {
     public SortMatchInfo() {
     }
 
-    public Map<Date, List<MatchObj>> sortFixturesByDate(ArrayList<MatchObj> matchList) throws ParseException {
+    public Map<Date, List<MatchObj>> sortFixturesByDate(ArrayList<MatchObj> matchList, boolean search) throws ParseException {
 
 
         Collections.sort(matchList, new Comparator<MatchObj>() {
@@ -45,15 +45,25 @@ public class SortMatchInfo {
 
         Map<Date, List<MatchObj>> map = new HashMap<>();
 
-        for (MatchObj match : matchList) {
+        int count = 0;
+
+        for (MatchObj match : matchList)
+        {
+            if(count > 20 && !search)
+            {
+                break;
+            }
+
             //create new list of matches and add them based on the map key
             List<MatchObj> list = map.get(new SimpleDateFormat("dd-MM-yyyy").parse(match.getDate()));
             if (list == null) {
-                list = new ArrayList<MatchObj>();
+                list = new ArrayList<>();
                 map.put(new SimpleDateFormat("dd-MM-yyyy").parse(match.getDate()), list);
             }
 
             list.add(match);
+
+            count++;
         }
 
         return new TreeMap<>(map);
@@ -67,7 +77,8 @@ public class SortMatchInfo {
         //create list of times in ascending order
         ArrayList<String> matchTimes = new ArrayList<>();
 
-        for (int k = 0; k < matchList.size(); k++) {
+        //limit size of match list for better performance.
+        for (int k = 0; k < (matchList.size() > 20 ? matchList.size() : 20); k++) {
             //make sure we sort by date ONLY if we are not searching by team
             if (sortByInput == null || !sortByInput.equals("sort") || !sortByInput.equals("team") || !sortByInput.equals("comp")) {
                 //check to make sure we are sorting matches for todays date
